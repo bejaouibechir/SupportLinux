@@ -1,0 +1,266 @@
+**TP Global : Parcours complet des commandes de base (Ubuntu & Debian)**
+
+### **Objectifs**
+
+* Naviguer efficacement (`cd`, `pwd`, `pushd/popd`, `ls` + options).
+* Gérer fichiers/répertoires (`mkdir`, `touch`, `cp`, `mv`, `rm`, `ln`, `chmod`, `chgrp`).
+* Rechercher/visualiser (`find`, `grep`, `less`, `head/tail`, `cut/sort/uniq/wc`, `file`, `which/whereis`, `locate`).
+* Archiver/compresser (`tar`, `gzip/gunzip`, `zip/unzip`).
+* Télécharger & vérifier (`wget`, `curl`, `sha256sum`).
+* Exploiter l’historique/alias/`PATH`.
+
+### **Pré-requis**
+
+* Dossier de travail : `~/LabGlobal`
+* Paquets utiles (si absents) : `tree`, `zip`, `unzip`, `curl`, `wget`, `plocate`
+
+  * **Ubuntu** : `sudo apt update && sudo apt install -y tree zip unzip curl wget plocate`
+  * **Debian (minimal)** :
+    `su -` → `apt update && apt install -y tree zip unzip curl wget plocate` → `exit`
+
+---
+
+## **ÉNONCÉ**
+
+1. **Préparation** : créez `~/LabGlobal` avec sous-dossiers `src`, `data`, `logs`, `backup`, `bin`.
+2. **Navigation** : placez-vous dans `~/LabGlobal/src`, affichez votre position, revenez au dossier précédent puis au parent.
+3. **Listing** : dans `~/LabGlobal`, listez tous les éléments (y compris cachés) en long format, triés du plus ancien au plus récent, tailles lisibles.
+4. **Fichiers** : créez `notes.txt` (vide) et `lignes.txt` (20 lignes `ligne 1..20`). Vérifiez leurs tailles.
+5. **Affichage** : affichez les 5 premières et 5 dernières lignes de `lignes.txt`, puis paginez le fichier.
+6. **Liens** : créez un **lien physique** `notes.hard` et un **lien symbolique** `notes.sym` vers `notes.txt`. Comparez leurs inodes.
+7. **Permissions** : rendez exécutable un script `bin/hello.sh` qui affiche “Bonjour LabGlobal”. Exécutez-le via `./` puis via le `PATH`.
+8. **Copie & déplacement** : copiez récursivement `~/LabGlobal/src` en `~/LabGlobal/backup/src_bak`, puis déplacez `notes.txt` dans `data/`.
+9. **Renommage** : renommez `data/notes.txt` en `data/notes_old.txt` (mode verbeux).
+10. **Recherche** : trouvez tous les fichiers `.txt` sous `~/LabGlobal`, puis uniquement ceux modifiés depuis moins d’1 jour. Comptez-les.
+11. **Extraction d’infos** : créez `data.csv` (3 colonnes `;`), affichez la 2ᵉ colonne, triez numériquement sur cette colonne, supprimez les doublons.
+12. **Archives** : créez une archive `backup.tar.gz` de tout `~/LabGlobal` **en excluant** le dossier `backup`.
+13. **Tar listing & extraction sélective** : listez `backup.tar.gz` puis extrayez **uniquement** `lignes.txt` dans `~/LabGlobal/backup/extract/`.
+14. **Zip** : créez `pack.zip` contenant `data/` et `src/`, puis décompressez-le dans `backup/unzip/`.
+15. **Logs** : suivez un log en temps réel (voir nuance Debian/Ubuntu). En parallèle, ajoutez des lignes dans `logs/app.log` pour observer `tail -f`.
+16. **Téléchargements** : téléchargez un fichier de test avec `wget` (ou `curl`), reprenez un téléchargement interrompu et limitez le débit.
+17. **Intégrité** : calculez la somme SHA-256 du fichier téléchargé et comparez-la à une valeur attendue (simulée).
+18. **Localisation** : trouvez `sshd_config` avec `locate`, montrez où est `ls` et les pages man du `bash`.
+19. **Historique** : activez les timestamps dans l’historique, rejouez la dernière commande et la commande n°15.
+20. **Nettoyage** : supprimez un dossier temporaire non vide de façon sécurisée (confirmation).
+
+---
+
+## **SOLUTIONS DÉTAILLÉES**
+
+### 1) Préparation
+
+```bash
+mkdir -p ~/LabGlobal/{src,data,logs,backup,bin}
+tree -L 1 ~/LabGlobal
+```
+
+### 2) Navigation
+
+```bash
+cd ~/LabGlobal/src
+pwd
+cd -         # revient au dossier précédent
+cd ..        # parent (~/LabGlobal)
+```
+
+### 3) Listing
+
+```bash
+ls -alhtr ~/LabGlobal
+# -a : cachés | -l : long | -h : tailles lisibles | -t : tri date | -r : inverse (ancien → récent)
+```
+
+### 4) Fichiers
+
+```bash
+cd ~/LabGlobal
+touch notes.txt
+for i in {1..20}; do echo "ligne $i"; done > lignes.txt
+ls -lh notes.txt lignes.txt
+```
+
+### 5) Affichage
+
+```bash
+head -n 5 lignes.txt
+tail -n 5 lignes.txt
+less lignes.txt   # navigation : /mot, n, p, g, G, q
+```
+
+### 6) Liens
+
+```bash
+ln notes.txt notes.hard
+ln -s notes.txt notes.sym
+ls -li notes*    # comparer les inodes : hard link = même inode ; symlink = inode différent
+```
+
+### 7) Permissions & PATH
+
+```bash
+cat > ~/LabGlobal/bin/hello.sh <<'EOF'
+#!/usr/bin/env bash
+echo "Bonjour LabGlobal"
+EOF
+chmod u+x ~/LabGlobal/bin/hello.sh
+./bin/hello.sh
+
+# Ajouter bin au PATH (pour sessions futures)
+echo 'export PATH="$HOME/LabGlobal/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+hello.sh
+```
+
+### 8) Copie & déplacement
+
+```bash
+cp -r ~/LabGlobal/src ~/LabGlobal/backup/src_bak
+mv -v ~/LabGlobal/notes.txt ~/LabGlobal/data/
+```
+
+### 9) Renommage
+
+```bash
+mv -v ~/LabGlobal/data/notes.txt ~/LabGlobal/data/notes_old.txt
+```
+
+### 10) Recherche & comptage
+
+```bash
+find ~/LabGlobal -type f -name "*.txt"
+find ~/LabGlobal -type f -name "*.txt" -mtime -1
+find ~/LabGlobal -type f -name "*.txt" | wc -l
+```
+
+### 11) Extraction d’infos (CSV)
+
+```bash
+cat > ~/LabGlobal/data/data.csv <<'EOF'
+a;1;x
+b;2;y
+c;3;z
+b;2;y
+EOF
+cut -d';' -f2 ~/LabGlobal/data/data.csv
+sort -t';' -k2,2n ~/LabGlobal/data/data.csv
+sort -t';' -k2,2 ~/LabGlobal/data/data.csv | uniq -c
+```
+
+### 12) Archives (tar + exclusion)
+
+```bash
+cd ~/LabGlobal
+tar -czvf backup.tar.gz --exclude="backup" .
+ls -lh backup.tar.gz
+```
+
+### 13) Tar listing & extraction sélective
+
+```bash
+tar -tf backup.tar.gz | head
+mkdir -p ~/LabGlobal/backup/extract
+tar -xvf backup.tar.gz -C ~/LabGlobal/backup/extract ./lignes.txt
+```
+
+### 14) Zip
+
+```bash
+cd ~/LabGlobal
+zip -r -9 pack.zip data src
+mkdir -p ~/LabGlobal/backup/unzip
+unzip pack.zip -d ~/LabGlobal/backup/unzip
+```
+
+### 15) Logs (suivi temps réel)
+
+```bash
+# Terminal A :
+tail -f ~/LabGlobal/logs/app.log
+
+# Terminal B (ajoute des lignes) :
+for i in {1..5}; do echo "$(date '+%F %T') - event $i" >> ~/LabGlobal/logs/app.log; sleep 1; done
+
+# Suivi des logs système :
+# Ubuntu (souvent rsyslog actif) :
+tail -f /var/log/syslog
+# Debian “journald-only” (si /var/log/syslog absent) :
+# journalctl -f
+```
+
+### 16) Téléchargements
+
+```bash
+# Wget
+wget -O ~/LabGlobal/data/test.bin https://example.com/
+# Reprise
+wget -c -O ~/LabGlobal/data/test.bin https://example.com/
+# Limiter le débit
+wget --limit-rate=200k -O ~/LabGlobal/data/test_slow.bin https://example.com/
+
+# Curl (alternatives)
+# curl -o ~/LabGlobal/data/test.bin https://example.com/
+# curl -L -o ~/LabGlobal/data/test_redirect.bin https://example.com/redirect
+```
+
+### 17) Intégrité
+
+```bash
+cd ~/LabGlobal/data
+sha256sum test.bin > test.bin.sha256
+cat test.bin.sha256
+# Comparaison : comparer visuellement avec une somme “référence” si fournie par l’éditeur.
+```
+
+### 18) Localisation & infos binaires
+
+```bash
+# locate (indexé)
+locate sshd_config | head
+
+# which / whereis
+which ls
+whereis bash
+```
+
+### 19) Historique (timestamps + recall)
+
+```bash
+echo 'HISTTIMEFORMAT="%Y-%m-%d %T "' >> ~/.bashrc
+source ~/.bashrc
+history | head
+!!
+!15
+```
+
+### 20) Nettoyage sécurisé
+
+```bash
+mkdir -p ~/LabGlobal/tmp/demo && touch ~/LabGlobal/tmp/demo/{a,b,c}
+rm -ri ~/LabGlobal/tmp/demo
+# -i : demande une confirmation → plus sûr
+```
+
+---
+
+## **Nuances Ubuntu / Debian (rappel)**
+
+* **sudo** : présent par défaut sur Ubuntu ; sur Debian minimal, utilisez `su -` ou installez `sudo` et ajoutez votre utilisateur au groupe `sudo`.
+* **Logs système** :
+
+  * Ubuntu : `tail -f /var/log/syslog` (rsyslog habituel).
+  * Debian sans rsyslog : `journalctl -f`.
+* **Paquets** : sur Debian minimal, installer au besoin `tree`, `zip`, `unzip`, `curl`, `wget`, `plocate`.
+
+---
+
+## **Critères de validation (auto-contrôle)**
+
+* `tree -L 1 ~/LabGlobal` montre bien `bin/ data/ logs/ backup/ src/`.
+* `hello.sh` exécutable via `PATH`.
+* `backup.tar.gz` créé **sans** le dossier `backup`.
+* `pack.zip` décompressé correctement dans `backup/unzip/`.
+* `tail -f` affiche en direct les événements ajoutés.
+* `sha256sum` produit une empreinte cohérente.
+* `locate sshd_config` retourne au moins un chemin valide.
+
+
