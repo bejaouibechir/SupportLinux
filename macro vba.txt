@@ -1,0 +1,129 @@
+'Ouvrez PowerPoint → Alt+F11 → Insertion → Module → collez ceci → exécutez FormatSlides_TNR.
+
+Option Explicit
+
+' ====== Configuration ======
+Private Const APPLY_LEFT_POSITION_FOR_TITLES As Boolean = True ' Mettre les titres à Left = 0
+Private Const TITLE_LEFT_MARGIN_POINTS As Single = 0            ' Position X des titres (0 = bord gauche)
+Private Const TEXTBOX_LEFT_MARGIN_POINTS As Single = 0          ' Marge gauche interne des zones de texte
+Private Const TNR_NAME As String = "Times New Roman"
+Private Const SIZE_FIRST_LINE As Single = 20
+Private Const SIZE_OTHER_LINES As Single = 18
+' ===========================
+
+Public Sub FormatSlides_TNR()
+    On Error GoTo SafeExit
+
+    Dim sld As Slide
+    For Each sld In ActivePresentation.Slides
+        Dim shp As Shape
+        For Each shp In sld.Shapes
+            ProcessShapeRecursive shp
+        Next shp
+    Next sld
+
+SafeExit:
+    If Err.Number <> 0 Then
+        MsgBox "Erreur: " & Err.Description, vbExclamation, "FormatSlides_TNR"
+    End If
+End Sub
+
+' Traite une forme, et si c'est un groupe, traite ses enfants récursivement.
+Private Sub ProcessShapeRecursive(ByVal shp As Shape)
+    On Error Resume Next
+
+    If shp.Type = msoGroup Then
+        Dim i As Long
+        For i = 1 To shp.GroupItems.Count
+            ProcessShapeRecursive shp.GroupItems(i)
+        Next i
+        Exit Sub
+    End If
+
+    ' Placeholders Titre: optionnellement coller au bord gauche
+    If APPLY_LEFT_POSITION_FOR_TITLES Then
+        If shp.Type = msoPlaceholder Then
+            Select Case shp.PlaceholderFormat.Type
+                Case ppPlaceholderTitle, ppPlaceholderCenterTitle
+                    shp.Left = TITLE_LEFT_MARGIN_POINTS
+            End Select
+        End If
+    End If
+
+    ' Zones de texte standards
+    If shp.HasTextFrame Then
+        If shp.TextFrame.HasText Then
+            ApplyTextFrame2Formatting shp
+            Exit Sub
+        End If
+    End If
+
+    ' Tableaux : appliquer la police/tailles souhaitées
+    If shp.HasTable Then
+        ApplyTableFormatting shp
+        Exit Sub
+    End If
+End Sub
+
+' Applique les styles sur un TextFrame2 (plus fiable pour les polices/alignements)
+Private Sub ApplyTextFrame2Formatting(ByVal shp As Shape)
+    On Error Resume Next
+
+    Dim tf2 As TextFrame2
+    Set tf2 = shp.TextFrame2
+
+    ' Marge gauche interne pour coller au bord
+    tf2.MarginLeft = TEXTBOX_LEFT_MARGIN_POINTS
+
+    Dim tr As TextRange2
+    Set tr = tf2.TextRange
+
+    If tr Is Nothing Then Exit Sub
+    If tr.Characters.Count = 0 Then Exit Sub
+
+    ' 1) Tout le contenu : Times New Roman 18, aligné à gauche
+    With tr
+        .Font.Name = TNR_NAME
+        .Font.Size = SIZE_OTHER_LINES
+        .ParagraphFormat.Alignment = msoAlignLeft
+    End With
+
+    ' 2) Première "ligne" = 1er paragraphe : Times New Roman 20 + aligné à gauche
+    Dim p1 As TextRange2
+    Set p1 = tr.Paragraphs(1)
+    With p1
+        .Font.Name = TNR_NAME
+        .Font.Size = SIZE_FIRST_LINE
+        .ParagraphFormat.Alignment = msoAlignLeft
+    End With
+End Sub
+
+' Applique Times New Roman 18 à tout le texte des tableaux, et 20 sur la 1ère ligne de chaque cellule si pertinente
+Private Sub ApplyTableFormatting(ByVal shp As Shape)
+    On Error Resume Next
+
+    Dim r As Long, c As Long
+    With shp.Table
+        For r = 1 To .Rows.Count
+            For c = 1 To .Columns.Count
+                Dim cellRange As TextRange2
+                Set cellRange = .Cell(r, c).Shape.TextFrame2.TextRange
+                If Not cellRange Is Nothing Then
+                    If cellRange.Characters.Count > 0 Then
+                        ' Tout le contenu cellule
+                        cellRange.Font.Name = TNR_NAME
+                        cellRange.Font.Size = SIZE_OTHER_LINES
+                        cellRange.ParagraphFormat.Alignment = msoAlignLeft
+
+                        ' Première ligne (paragraphe 1) de la cellule en 20
+                        Dim cellP1 As TextRange2
+                        Set cellP1 = cellRange.Paragraphs(1)
+                        cellP1.Font.Name = TNR_NAME
+                        cellP1.Font.Size = SIZE_FIRST_LINE
+                        cellP1.ParagraphFormat.Alignment = msoAlignLeft
+                    End If
+                End If
+            Next c
+        Next r
+    End With
+End Sub
